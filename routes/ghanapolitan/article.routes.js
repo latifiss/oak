@@ -9,21 +9,17 @@ router.post(
   articleController.createArticle
 );
 
-router.put(
-  '/:id',
-  upload.fields([{ name: 'image', maxCount: 1 }]),
-  articleController.updateArticle
-);
-
-router.delete('/:id', articleController.deleteArticle);
-
-router.get('/:id', articleController.getArticleById);
-
-router.get('/slug/:slug', articleController.getArticleBySlug);
-
 router.get('/', articleController.getAllArticles);
 
-router.get('/section/:sectionSlug', articleController.getArticlesBySection);
+router.get('/search', articleController.searchArticles);
+
+router.get('/headline/current', articleController.getHeadline);
+
+router.get('/breaking', articleController.getBreakingNews);
+router.get('/live', articleController.getLiveArticles);
+router.get('/top-stories', articleController.getTopStories);
+
+router.get('/status/:status', articleController.getArticlesByStatus);
 
 router.get('/feed', articleController.getArticleFeed);
 
@@ -32,11 +28,6 @@ router.get(
   articleController.getArticleFeedByCategory
 );
 
-router.get('/section/id/:sectionId', articleController.getArticlesBySectionId);
-router.get(
-  '/section/slug/:sectionSlug',
-  articleController.getArticlesBySectionSlug
-);
 router.get('/with-sections', articleController.getArticlesWithSections);
 router.get('/without-section', articleController.getArticlesWithoutSection);
 router.get(
@@ -47,8 +38,14 @@ router.get(
   '/without-section-by-subcategory/:subcategory',
   articleController.getArticlesWithoutSectionBySubcategory
 );
-router.post('/:id/assign-section', articleController.assignArticleToSection);
-router.post('/:id/remove-section', articleController.removeArticleFromSection);
+
+router.get('/section/:sectionSlug', articleController.getArticlesBySection);
+
+router.get('/section/id/:sectionId', articleController.getArticlesBySectionId);
+router.get(
+  '/section/slug/:sectionSlug',
+  articleController.getArticlesBySectionSlug
+);
 
 router.get('/category/:category', articleController.getArticlesByCategory);
 
@@ -59,13 +56,7 @@ router.get(
 
 router.get('/similar/:slug', articleController.getSimilarArticles);
 
-router.get('/search', articleController.searchArticles);
-
-router.get('/headline/current', articleController.getHeadline);
-
-router.get('/breaking', articleController.getBreakingNews);
-router.get('/live', articleController.getLiveArticles);
-router.get('/top-stories', articleController.getTopStories);
+router.get('/slug/:slug', articleController.getArticleBySlug);
 
 router.get('/:slug/comments', articleController.getComments);
 router.post('/:slug/comments', articleController.addComment);
@@ -98,5 +89,20 @@ router.post(
   '/:slug/comments/:commentId/replies/:replyId/downvote',
   articleController.downvoteReply
 );
+
+router.post('/:id/assign-section', articleController.assignArticleToSection);
+router.post('/:id/remove-section', articleController.removeArticleFromSection);
+
+router.put(
+  '/:id',
+  upload.fields([{ name: 'image', maxCount: 1 }]),
+  articleController.updateArticle
+);
+
+router.delete('/:id', articleController.deleteArticle);
+
+router.get('/:id', articleController.getArticleById);
+
+router.get('/status/:status', articleController.getArticlesByStatus);
 
 module.exports = router;

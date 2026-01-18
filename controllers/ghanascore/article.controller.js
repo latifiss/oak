@@ -2,8 +2,10 @@ const { Article } = require('../../models/ghanascore/article.model');
 const { uploadToR2, deleteFromR2 } = require('../../utils/r2');
 const { getRedisClient } = require('../../lib/redis');
 
+const SITE_PREFIX = 'ghanascore';
+
 const generateCacheKey = (prefix, params) => {
-  return `${prefix}:${Object.values(params).join(':')}`;
+  return `${SITE_PREFIX}:${prefix}:${Object.values(params).join(':')}`;
 };
 
 const setCache = async (key, data, expiration = 3600) => {
@@ -44,16 +46,16 @@ const deleteCacheByPattern = async (pattern) => {
 
 const invalidateArticleCache = async () => {
   await Promise.all([
-    deleteCacheByPattern('articles:*'),
-    deleteCacheByPattern('article:id:*'),
-    deleteCacheByPattern('headline:*'),
-    deleteCacheByPattern('category:*'),
-    deleteCacheByPattern('article:*'),
-    deleteCacheByPattern('search:*'),
-    deleteCacheByPattern('similar:*'),
-    deleteCacheByPattern('subcategory:*'),
-    deleteCacheByPattern('topstories:*'),
-    deleteCacheByPattern('breaking:*'),
+    deleteCacheByPattern(`${SITE_PREFIX}:articles:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:article:id:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:headline:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:category:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:article:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:search:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:similar:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:subcategory:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:topstories:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:breaking:*`),
   ]);
 };
 
@@ -61,8 +63,8 @@ const updateExpiredTopstories = async () => {
   try {
     const expiredCount = await Article.updateExpiredTopstories();
     if (expiredCount > 0) {
-      await deleteCacheByPattern('topstories:*');
-      await deleteCacheByPattern('articles:*');
+      await deleteCacheByPattern(`${SITE_PREFIX}:topstories:*`);
+      await deleteCacheByPattern(`${SITE_PREFIX}:articles:*`);
     }
     return expiredCount;
   } catch (err) {
@@ -75,8 +77,8 @@ const updateExpiredBreakingNews = async () => {
   try {
     const expiredCount = await Article.updateExpiredBreakingNews();
     if (expiredCount > 0) {
-      await deleteCacheByPattern('breaking:*');
-      await deleteCacheByPattern('articles:*');
+      await deleteCacheByPattern(`${SITE_PREFIX}:breaking:*`);
+      await deleteCacheByPattern(`${SITE_PREFIX}:articles:*`);
     }
     return expiredCount;
   } catch (err) {
@@ -125,7 +127,7 @@ exports.createArticle = async (req, res) => {
         { isHeadline: true },
         { $set: { isHeadline: false } }
       );
-      await deleteCacheByPattern('headline:*');
+      await deleteCacheByPattern(`${SITE_PREFIX}:headline:*`);
     }
 
     let imageUrl = null;
@@ -310,7 +312,7 @@ exports.updateArticle = async (req, res) => {
         { isHeadline: true },
         { $set: { isHeadline: false } }
       );
-      await deleteCacheByPattern('headline:*');
+      await deleteCacheByPattern(`${SITE_PREFIX}:headline:*`);
     } else if (existingArticle.isHeadline && updateData.isHeadline === false) {
       updateData.isHeadline = false;
     }
@@ -447,7 +449,7 @@ exports.getArticleById = async (req, res) => {
       });
     }
 
-    const cacheKey = `article:id:${id}`;
+    const cacheKey = `${SITE_PREFIX}:article:id:${id}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
@@ -487,7 +489,7 @@ exports.getArticleById = async (req, res) => {
 exports.getArticleBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
-    const cacheKey = `article:${slug}`;
+    const cacheKey = `${SITE_PREFIX}:article:${slug}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
@@ -512,7 +514,7 @@ exports.getArticleBySlug = async (req, res) => {
       article.isTopstory = false;
       article.topstoryExpiresAt = null;
       await article.save();
-      await deleteCacheByPattern('topstories:*');
+      await deleteCacheByPattern(`${SITE_PREFIX}:topstories:*`);
     }
 
     const responseData = article.toObject();
@@ -600,7 +602,7 @@ exports.getTopStoriesByCategory = async (req, res) => {
   try {
     const { category } = req.params;
     const limit = parseInt(req.query.limit) || 10;
-    const cacheKey = `topstories:category:${category}:${limit}`;
+    const cacheKey = `${SITE_PREFIX}:topstories:category:${category}:${limit}`;
 
     await updateExpiredTopstories();
 
@@ -638,7 +640,7 @@ exports.getTopStoriesByCategory = async (req, res) => {
 exports.getRecentTopStories = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    const cacheKey = `topstories:recent:${limit}`;
+    const cacheKey = `${SITE_PREFIX}:topstories:recent:${limit}`;
 
     await updateExpiredTopstories();
 
@@ -952,7 +954,7 @@ exports.searchArticles = async (req, res) => {
 
 exports.getHeadline = async (req, res) => {
   try {
-    const cacheKey = 'headline:current';
+    const cacheKey = `${SITE_PREFIX}:headline:current`;
     const cachedData = await getCache(cacheKey);
 
     if (cachedData) {
@@ -1008,7 +1010,7 @@ exports.getHeadline = async (req, res) => {
 exports.getTopStories = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    const cacheKey = `topstories:${limit}`;
+    const cacheKey = `${SITE_PREFIX}:topstories:${limit}`;
 
     await updateExpiredTopstories();
 
@@ -1045,7 +1047,7 @@ exports.getTopStories = async (req, res) => {
 exports.getBreakingNews = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 5;
-    const cacheKey = `breaking:${limit}`;
+    const cacheKey = `${SITE_PREFIX}:breaking:${limit}`;
 
     await updateExpiredBreakingNews();
 
@@ -1113,6 +1115,194 @@ exports.getLiveArticles = async (req, res) => {
     };
 
     await setCache(cacheKey, responseData, 60);
+
+    res.status(200).json({
+      status: 'success',
+      cached: false,
+      ...responseData,
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      message: err.message,
+    });
+  }
+};
+
+exports.getArticlesByStatus = async (req, res) => {
+  try {
+    const { status } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const validStatuses = ['live', 'breaking', 'topstory', 'topstories', 'headline'];
+    const normalizedStatus = status.toLowerCase();
+
+    if (!validStatuses.includes(normalizedStatus)) {
+      return res.status(400).json({
+        status: 'fail',
+        message: `Invalid status. Valid statuses are: ${validStatuses.join(', ')}`,
+      });
+    }
+
+    await updateExpiredTopstories();
+    await updateExpiredBreakingNews();
+
+    const cacheKey = generateCacheKey('articles:status', {
+      status: normalizedStatus,
+      page,
+      limit,
+    });
+    const cachedData = await getCache(cacheKey);
+
+    if (cachedData) {
+      return res.status(200).json({
+        status: 'success',
+        cached: true,
+        ...cachedData,
+      });
+    }
+
+    let query = {};
+    
+    switch (normalizedStatus) {
+      case 'live':
+        query.isLive = true;
+        break;
+      case 'breaking':
+        query.isBreaking = true;
+        break;
+      case 'topstory':
+      case 'topstories':
+        query.isTopstory = true;
+        break;
+      case 'headline':
+        query.isHeadline = true;
+        break;
+    }
+
+    const [articles, total] = await Promise.all([
+      Article.find(query)
+        .sort({ published_at: -1 })
+        .skip(skip)
+        .limit(limit),
+      Article.countDocuments(query),
+    ]);
+
+    const responseData = {
+      status: normalizedStatus,
+      results: articles.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      data: { articles },
+    };
+
+    const cacheExpiration = normalizedStatus === 'breaking' || normalizedStatus === 'live' ? 60 : 300;
+    await setCache(cacheKey, responseData, cacheExpiration);
+
+    res.status(200).json({
+      status: 'success',
+      cached: false,
+      ...responseData,
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      message: err.message,
+    });
+  }
+};
+
+exports.getArticlesByStatus = async (req, res) => {
+  try {
+    const { status } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const validStatuses = ['breaking', 'live', 'topstory', 'headline'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        status: 'fail',
+        message:
+          'Invalid status. Valid statuses: breaking, live, topstory, headline',
+      });
+    }
+
+    const statusMap = {
+      breaking: 'isBreaking',
+      live: 'isLive',
+      topstory: 'isTopstory',
+      headline: 'isHeadline',
+    };
+
+    const statusField = statusMap[status];
+
+    const cacheKey = generateCacheKey('articles:status', {
+      status,
+      page,
+      limit,
+    });
+
+    const cachedData = await getCache(cacheKey);
+
+    if (cachedData) {
+      return res.status(200).json({
+        status: 'success',
+        cached: true,
+        ...cachedData,
+      });
+    }
+
+    if (status === 'breaking') {
+      await updateExpiredBreakingNews();
+    } else if (status === 'topstory') {
+      await updateExpiredTopstories();
+    }
+
+    const query = { [statusField]: true };
+
+    if (req.query.category) {
+      query.category = req.query.category;
+    }
+
+    if (req.query.subcategory) {
+      query.subcategory = { $in: [req.query.subcategory] };
+    }
+
+    if (req.query.hasLivescore !== undefined) {
+      query.hasLivescore = req.query.hasLivescore === 'true';
+    }
+
+    if (req.query.livescoreTag) {
+      query.livescoreTag = req.query.livescoreTag;
+    }
+
+    const [articles, total] = await Promise.all([
+      Article.find(query).sort({ published_at: -1 }).skip(skip).limit(limit),
+      Article.countDocuments(query),
+    ]);
+
+    const responseData = {
+      statusType: status,
+      results: articles.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      data: { articles },
+    };
+
+    let cacheExpiration = 300;
+
+    if (status === 'breaking') {
+      cacheExpiration = 60;
+    } else if (status === 'live') {
+      cacheExpiration = 60;
+    }
+
+    await setCache(cacheKey, responseData, cacheExpiration);
 
     res.status(200).json({
       status: 'success',

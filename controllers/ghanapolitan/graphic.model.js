@@ -1,8 +1,8 @@
-const Feature = require('../../models/afrobeatsrep/feature.model');
+const Graphic = require('../../models/ghanapolitan/graphic.model');
 const { uploadToR2, deleteFromR2 } = require('../../utils/r2');
 const { getRedisClient } = require('../../lib/redis');
 
-const SITE_PREFIX = 'afrobeatsrep';
+const SITE_PREFIX = 'ghanapolitan';
 
 const generateCacheKey = (prefix, params) => {
   return `${SITE_PREFIX}:${prefix}:${Object.values(params).join(':')}`;
@@ -44,38 +44,24 @@ const deleteCacheByPattern = async (pattern) => {
   }
 };
 
-const invalidateFeatureCache = async () => {
+const invalidateGraphicCache = async () => {
   await Promise.all([
-    deleteCacheByPattern(`${SITE_PREFIX}:features:*`),
-    deleteCacheByPattern(`${SITE_PREFIX}:feature:*`),
-    deleteCacheByPattern(`${SITE_PREFIX}:feature:id:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:graphics:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:graphic:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:graphic:id:*`),
     deleteCacheByPattern(`${SITE_PREFIX}:category:*`),
     deleteCacheByPattern(`${SITE_PREFIX}:search:*`),
-    deleteCacheByPattern(`${SITE_PREFIX}:similar:*`),
-    deleteCacheByPattern(`${SITE_PREFIX}:subcategory:*`),
   ]);
 };
 
-exports.createFeature = async (req, res) => {
+exports.createGraphic = async (req, res) => {
   try {
-    const {
-      title,
-      description,
-      content,
-      category,
-      subcategory,
-      tags,
-      meta_title,
-      meta_description,
-      creator,
-      slug,
-      published_at,
-    } = req.body;
+    const { title, description, meta_title, meta_description } = req.body;
 
-    if (!title || !description || !content || !category) {
+    if (!title || !description) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Title, description, content, and category are required',
+        message: 'Title and description are required',
       });
     }
 
@@ -88,12 +74,12 @@ exports.createFeature = async (req, res) => {
       );
     }
 
-    let featureSlug = slug;
-    if (!featureSlug) {
-      featureSlug = Feature.prototype.generateSlug(title);
+    let graphicSlug = slug;
+    if (!graphicSlug) {
+      graphicSlug = Graphic.prototype.generateSlug(title);
     }
 
-    const existingSlug = await Feature.findOne({ slug: featureSlug });
+    const existingSlug = await Graphic.findOne({ slug: graphicSlug });
     if (existingSlug) {
       return res.status(400).json({
         status: 'fail',
@@ -101,50 +87,19 @@ exports.createFeature = async (req, res) => {
       });
     }
 
-    let processedTags = [];
-    if (tags) {
-      if (typeof tags === 'string') {
-        processedTags = tags.split(',').map((tag) => tag.trim());
-      } else if (Array.isArray(tags)) {
-        processedTags = tags;
-      }
-    }
-
-    let processedSubcategory = [];
-    if (subcategory) {
-      if (typeof subcategory === 'string') {
-        processedSubcategory = subcategory.split(',').map((sub) => sub.trim());
-      } else if (Array.isArray(subcategory)) {
-        processedSubcategory = subcategory;
-      }
-    }
-
-    const feature = new Feature({
+    const graphic = new Graphic({
       title,
       description,
-      content,
-      category,
-      subcategory: processedSubcategory,
-      tags: processedTags,
-      meta_title: meta_title || Feature.prototype.generateMetaTitle(title),
-      meta_description:
-        meta_description ||
-        Feature.prototype.generateMetaDescription({
-          title,
-          description,
-        }),
-      creator: creator || 'Admin',
-      slug: featureSlug,
+      slug: graphicSlug,
       image_url: imageUrl,
-      published_at: published_at ? new Date(published_at) : Date.now(),
     });
 
-    await feature.save();
-    await invalidateFeatureCache();
+    await graphic.save();
+    await invalidateGraphicCache();
 
     res.status(201).json({
       status: 'success',
-      data: { feature },
+      data: { graphic },
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -160,22 +115,22 @@ exports.createFeature = async (req, res) => {
   }
 };
 
-exports.updateFeature = async (req, res) => {
+exports.updateGraphic = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
-    const existingFeature = await Feature.findById(id);
+    const existingGraphic = await Graphic.findById(id);
 
-    if (!existingFeature) {
+    if (!existingGraphic) {
       return res.status(404).json({
         status: 'fail',
-        message: 'Feature not found',
+        message: 'Graphic not found',
       });
     }
 
     if (req.files?.image?.[0]) {
-      if (existingFeature.image_url) {
-        await deleteFromR2(existingFeature.image_url);
+      if (existingGraphic.image_url) {
+        await deleteFromR2(existingGraphic.image_url);
       }
       updateData.image_url = await uploadToR2(
         req.files.image[0].buffer,
@@ -184,34 +139,20 @@ exports.updateFeature = async (req, res) => {
       );
     }
 
-    if (updateData.tags) {
-      if (typeof updateData.tags === 'string') {
-        updateData.tags = updateData.tags.split(',').map((tag) => tag.trim());
-      }
+    if (updateData.title && updateData.title !== existingGraphic.title) {
+      updateData.slug = Graphic.prototype.generateSlug(updateData.title);
     }
 
-    if (updateData.subcategory) {
-      if (typeof updateData.subcategory === 'string') {
-        updateData.subcategory = updateData.subcategory
-          .split(',')
-          .map((sub) => sub.trim());
-      }
-    }
-
-    if (updateData.title && updateData.title !== existingFeature.title) {
-      updateData.slug = Feature.prototype.generateSlug(updateData.title);
-    }
-
-    const feature = await Feature.findByIdAndUpdate(id, updateData, {
+    const graphic = await Graphic.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
     });
 
-    await invalidateFeatureCache();
+    await invalidateGraphicCache();
 
     res.status(200).json({
       status: 'success',
-      data: { feature },
+      data: { graphic },
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -227,28 +168,28 @@ exports.updateFeature = async (req, res) => {
   }
 };
 
-exports.deleteFeature = async (req, res) => {
+exports.deleteGraphic = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const feature = await Feature.findById(id);
-    if (!feature) {
+    const graphic = await Graphic.findById(id);
+    if (!graphic) {
       return res.status(404).json({
         status: 'fail',
-        message: 'Feature not found',
+        message: 'Graphic not found',
       });
     }
 
-    if (feature.image_url) {
-      await deleteFromR2(feature.image_url);
+    if (graphic.image_url) {
+      await deleteFromR2(graphic.image_url);
     }
 
-    await feature.deleteOne();
-    await invalidateFeatureCache();
+    await graphic.deleteOne();
+    await invalidateGraphicCache();
 
     res.status(200).json({
       status: 'success',
-      message: 'Feature deleted successfully',
+      message: 'Graphic deleted successfully',
     });
   } catch (err) {
     res.status(500).json({
@@ -258,45 +199,45 @@ exports.deleteFeature = async (req, res) => {
   }
 };
 
-exports.getFeatureById = async (req, res) => {
+exports.getGraphicById = async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Invalid feature ID format',
+        message: 'Invalid graphic ID format',
       });
     }
 
-    const cacheKey = `${SITE_PREFIX}:feature:id:${id}`;
+    const cacheKey = `${SITE_PREFIX}:graphic:id:${id}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
       return res.status(200).json({
         status: 'success',
         cached: true,
-        data: { feature: cachedData },
+        data: { graphic: cachedData },
       });
     }
 
-    const feature = await Feature.findById(id);
+    const graphic = await Graphic.findById(id);
 
-    if (!feature) {
+    if (!graphic) {
       return res.status(404).json({
         status: 'fail',
-        message: 'Feature not found',
+        message: 'Graphic not found',
       });
     }
 
-    const responseData = feature.toObject();
+    const responseData = graphic.toObject();
 
     await setCache(cacheKey, responseData, 1800);
 
     res.status(200).json({
       status: 'success',
       cached: false,
-      data: { feature: responseData },
+      data: { graphic: responseData },
     });
   } catch (err) {
     res.status(500).json({
@@ -306,10 +247,10 @@ exports.getFeatureById = async (req, res) => {
   }
 };
 
-exports.getFeatureBySlug = async (req, res) => {
+exports.getGraphicBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
-    const cacheKey = `${SITE_PREFIX}:feature:${slug}`;
+    const cacheKey = `${SITE_PREFIX}:graphic:${slug}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
@@ -320,15 +261,15 @@ exports.getFeatureBySlug = async (req, res) => {
       });
     }
 
-    const feature = await Feature.findOne({ slug });
-    if (!feature) {
+    const graphic = await Graphic.findOne({ slug });
+    if (!graphic) {
       return res.status(404).json({
         status: 'fail',
-        message: 'Feature not found',
+        message: 'Graphic not found',
       });
     }
 
-    const responseData = feature.toObject();
+    const responseData = graphic.toObject();
     await setCache(cacheKey, responseData, 1800);
 
     res.status(200).json({
@@ -344,13 +285,13 @@ exports.getFeatureBySlug = async (req, res) => {
   }
 };
 
-exports.getAllFeatures = async (req, res) => {
+exports.getAllGraphics = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const cacheKey = generateCacheKey('features:all', { page, limit });
+    const cacheKey = generateCacheKey('graphics:all', { page, limit });
     const cachedData = await getCache(cacheKey);
 
     if (cachedData) {
@@ -367,17 +308,17 @@ exports.getAllFeatures = async (req, res) => {
       query.category = req.query.category;
     }
 
-    const [features, total] = await Promise.all([
-      Feature.find(query).sort({ published_at: -1 }).skip(skip).limit(limit),
-      Feature.countDocuments(query),
+    const [graphics, total] = await Promise.all([
+      Graphic.find(query).sort({ published_at: -1 }).skip(skip).limit(limit),
+      Graphic.countDocuments(query),
     ]);
 
     const responseData = {
-      results: features.length,
+      results: graphics.length,
       total,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
-      data: { features },
+      data: { graphics },
     };
 
     await setCache(cacheKey, responseData, 300);
@@ -395,14 +336,14 @@ exports.getAllFeatures = async (req, res) => {
   }
 };
 
-exports.getFeaturesByCategory = async (req, res) => {
+exports.getGraphicsByCategory = async (req, res) => {
   try {
     const { category } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const cacheKey = generateCacheKey('features:category', {
+    const cacheKey = generateCacheKey('graphics:category', {
       category,
       page,
       limit,
@@ -417,21 +358,21 @@ exports.getFeaturesByCategory = async (req, res) => {
       });
     }
 
-    const [features, total] = await Promise.all([
-      Feature.find({ category })
+    const [graphics, total] = await Promise.all([
+      Graphic.find({ category })
         .sort({ published_at: -1 })
         .skip(skip)
         .limit(limit),
-      Feature.countDocuments({ category }),
+      Graphic.countDocuments({ category }),
     ]);
 
     const responseData = {
       category,
-      results: features.length,
+      results: graphics.length,
       total,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
-      data: { features },
+      data: { graphics },
     };
 
     await setCache(cacheKey, responseData, 300);
@@ -449,14 +390,14 @@ exports.getFeaturesByCategory = async (req, res) => {
   }
 };
 
-exports.getFeaturesBySubcategory = async (req, res) => {
+exports.getGraphicsBySubcategory = async (req, res) => {
   try {
     const { subcategory } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const cacheKey = generateCacheKey('features:subcategory', {
+    const cacheKey = generateCacheKey('graphics:subcategory', {
       subcategory,
       page,
       limit,
@@ -471,21 +412,21 @@ exports.getFeaturesBySubcategory = async (req, res) => {
       });
     }
 
-    const [features, total] = await Promise.all([
-      Feature.find({ subcategory: { $in: [subcategory] } })
+    const [graphics, total] = await Promise.all([
+      Graphic.find({ subcategory: { $in: [subcategory] } })
         .sort({ published_at: -1 })
         .skip(skip)
         .limit(limit),
-      Feature.countDocuments({ subcategory: { $in: [subcategory] } }),
+      Graphic.countDocuments({ subcategory: { $in: [subcategory] } }),
     ]);
 
     const responseData = {
       subcategory,
-      results: features.length,
+      results: graphics.length,
       total,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
-      data: { features },
+      data: { graphics },
     };
 
     await setCache(cacheKey, responseData, 300);
@@ -503,14 +444,14 @@ exports.getFeaturesBySubcategory = async (req, res) => {
   }
 };
 
-exports.getSimilarFeatures = async (req, res) => {
+exports.getSimilarGraphics = async (req, res) => {
   try {
     const { slug } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * limit;
 
-    const cacheKey = generateCacheKey('features:similar', {
+    const cacheKey = generateCacheKey('graphics:similar', {
       slug,
       page,
       limit,
@@ -525,43 +466,43 @@ exports.getSimilarFeatures = async (req, res) => {
       });
     }
 
-    const feature = await Feature.findOne({ slug });
+    const graphic = await Graphic.findOne({ slug });
     if (!feature) {
       return res.status(404).json({
         status: 'fail',
-        message: 'Feature not found',
+        message: 'Graphic not found',
       });
     }
 
-    const tags = feature.tags || [];
+    const tags = graphic.tags || [];
     if (tags.length === 0) {
       return res.status(200).json({
         status: 'success',
         results: 0,
-        data: { features: [] },
+        data: { graphics: [] },
       });
     }
 
-    const [similarFeatures, total] = await Promise.all([
-      Feature.find({
-        _id: { $ne: feature._id },
+    const [similarGraphics, total] = await Promise.all([
+      Graphic.find({
+        _id: { $ne: graphic._id },
         tags: { $in: tags },
       })
         .sort({ published_at: -1 })
         .skip(skip)
         .limit(limit),
-      Feature.countDocuments({
+      Graphic.countDocuments({
         _id: { $ne: feature._id },
         tags: { $in: tags },
       }),
     ]);
 
     const responseData = {
-      results: similarFeatures.length,
+      results: similarGraphics.length,
       total,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
-      data: { features: similarFeatures },
+      data: { graphics: similarGraphics },
     };
 
     await setCache(cacheKey, responseData, 1800);
@@ -579,7 +520,7 @@ exports.getSimilarFeatures = async (req, res) => {
   }
 };
 
-exports.searchFeatures = async (req, res) => {
+exports.searchGraphics = async (req, res) => {
   try {
     const { q } = req.query;
     const page = parseInt(req.query.page) || 1;
@@ -593,7 +534,7 @@ exports.searchFeatures = async (req, res) => {
       });
     }
 
-    const cacheKey = generateCacheKey('features:search', {
+    const cacheKey = generateCacheKey('graphics:search', {
       q,
       page,
       limit,
@@ -610,37 +551,33 @@ exports.searchFeatures = async (req, res) => {
 
     const searchRegex = new RegExp(q, 'i');
 
-    const [features, total] = await Promise.all([
-      Feature.find({
+    const [graphics, total] = await Promise.all([
+      Graphic.find({
         $or: [
           { title: { $regex: searchRegex } },
           { description: { $regex: searchRegex } },
-          { content: { $regex: searchRegex } },
           { category: { $regex: searchRegex } },
-          { tags: { $regex: searchRegex } },
         ],
       })
         .sort({ published_at: -1 })
         .skip(skip)
         .limit(limit),
-      Feature.countDocuments({
+      Graphic.countDocuments({
         $or: [
           { title: { $regex: searchRegex } },
           { description: { $regex: searchRegex } },
-          { content: { $regex: searchRegex } },
           { category: { $regex: searchRegex } },
-          { tags: { $regex: searchRegex } },
         ],
       }),
     ]);
 
     const responseData = {
       query: q,
-      results: features.length,
+      results: graphics.length,
       total,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
-      data: { features },
+      data: { graphics },
     };
 
     await setCache(cacheKey, responseData, 300);
@@ -658,10 +595,10 @@ exports.searchFeatures = async (req, res) => {
   }
 };
 
-exports.getRecentFeatures = async (req, res) => {
+exports.getRecentGraphics = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    const cacheKey = `${SITE_PREFIX}:features:recent:${limit}`;
+    const cacheKey = `${SITE_PREFIX}:graphics:recent:${limit}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
@@ -674,18 +611,18 @@ exports.getRecentFeatures = async (req, res) => {
 
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    const recentFeatures = await Feature.find({
+    const recentGraphics = await Graphic.find({
       published_at: { $gte: twentyFourHoursAgo },
     })
       .sort({ published_at: -1 })
       .limit(limit);
 
-    await setCache(cacheKey, recentFeatures, 300);
+    await setCache(cacheKey, recentGraphics, 300);
 
     res.status(200).json({
       status: 'success',
       cached: false,
-      data: recentFeatures,
+      data: recentGraphics,
     });
   } catch (err) {
     res.status(500).json({
@@ -695,10 +632,10 @@ exports.getRecentFeatures = async (req, res) => {
   }
 };
 
-exports.getFeaturedContent = async (req, res) => {
+exports.getFeaturedGraphics = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 6;
-    const cacheKey = `${SITE_PREFIX}:features:featured:${limit}`;
+    const cacheKey = `${SITE_PREFIX}:graphics:featured:${limit}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
@@ -709,29 +646,29 @@ exports.getFeaturedContent = async (req, res) => {
       });
     }
 
-    const [recentFeatures, popularFeatures] = await Promise.all([
-      Feature.find({})
+    const [recentGraphics, popularGraphics] = await Promise.all([
+      Graphic.find({})
         .sort({ published_at: -1 })
         .limit(Math.floor(limit / 2)),
-      Feature.aggregate([
+      Graphic.aggregate([
         { $sample: { size: Math.floor(limit / 2) } },
         { $sort: { published_at: -1 } },
       ]),
     ]);
 
-    const allFeatures = [...recentFeatures, ...popularFeatures];
-    const uniqueFeatures = allFeatures.filter(
-      (feature, index, self) =>
+    const allGraphics = [...recentGraphics, ...popularGraphics];
+    const uniqueGraphics = allGraphics.filter(
+      (graphic, index, self) =>
         index ===
-        self.findIndex((f) => f._id.toString() === feature._id.toString())
+        self.findIndex((g) => g._id.toString() === graphic._id.toString())
     );
 
-    await setCache(cacheKey, uniqueFeatures.slice(0, limit), 300);
+    await setCache(cacheKey, uniqueGraphics.slice(0, limit), 300);
 
     res.status(200).json({
       status: 'success',
       cached: false,
-      data: uniqueFeatures.slice(0, limit),
+      data: uniqueGraphics.slice(0, limit),
     });
   } catch (err) {
     res.status(500).json({

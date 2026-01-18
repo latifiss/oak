@@ -9,19 +9,13 @@ router.post(
   featureController.createFeature
 );
 
-router.put(
-  '/:id',
-  upload.fields([{ name: 'image', maxCount: 1 }]),
-  featureController.updateFeature
-);
-
-router.delete('/:id', featureController.deleteFeature);
-
-router.get('/:id', featureController.getFeatureById);
-
-router.get('/slug/:slug', featureController.getFeatureBySlug);
-
 router.get('/', featureController.getAllFeatures);
+
+router.get('/search', featureController.searchFeatures);
+
+router.get('/recent', featureController.getRecentFeatures);
+
+router.get('/featured', featureController.getFeaturedContent);
 
 router.get('/category/:category', featureController.getFeaturesByCategory);
 
@@ -32,10 +26,16 @@ router.get(
 
 router.get('/similar/:slug', featureController.getSimilarFeatures);
 
-router.get('/search', featureController.searchFeatures);
+router.get('/slug/:slug', featureController.getFeatureBySlug);
 
-router.get('/recent', featureController.getRecentFeatures);
+router.put(
+  '/:id',
+  upload.fields([{ name: 'image', maxCount: 1 }]),
+  featureController.updateFeature
+);
 
-router.get('/featured', featureController.getFeaturedContent);
+router.delete('/:id', featureController.deleteFeature);
+
+router.get('/:id', featureController.getFeatureById);
 
 module.exports = router;

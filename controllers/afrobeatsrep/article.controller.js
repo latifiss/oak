@@ -2,8 +2,10 @@ const Article = require('../../models/afrobeatsrep/article.model');
 const { uploadToR2, deleteFromR2 } = require('../../utils/r2');
 const { getRedisClient } = require('../../lib/redis');
 
+const SITE_PREFIX = 'afrobeatsrep';
+
 const generateCacheKey = (prefix, params) => {
-  return `${prefix}:${Object.values(params).join(':')}`;
+  return `${SITE_PREFIX}:${prefix}:${Object.values(params).join(':')}`;
 };
 
 const setCache = async (key, data, expiration = 3600) => {
@@ -44,14 +46,14 @@ const deleteCacheByPattern = async (pattern) => {
 
 const invalidateArticleCache = async () => {
   await Promise.all([
-    deleteCacheByPattern('articles:*'),
-    deleteCacheByPattern('article:*'),
-    deleteCacheByPattern('article:id:*'),
-    deleteCacheByPattern('headline:*'),
-    deleteCacheByPattern('category:*'),
-    deleteCacheByPattern('search:*'),
-    deleteCacheByPattern('similar:*'),
-    deleteCacheByPattern('subcategory:*'),
+    deleteCacheByPattern(`${SITE_PREFIX}:articles:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:article:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:article:id:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:headline:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:category:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:search:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:similar:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:subcategory:*`),
   ]);
 };
 
@@ -85,7 +87,7 @@ exports.createArticle = async (req, res) => {
         { isHeadline: true },
         { $set: { isHeadline: false } }
       );
-      await deleteCacheByPattern('headline:*');
+      await deleteCacheByPattern(`${SITE_PREFIX}:headline:*`);
     }
 
     let imageUrl = null;
@@ -155,7 +157,7 @@ exports.createArticle = async (req, res) => {
 
     if (isHeadline) {
       const responseData = { headline: article, similarArticles: [] };
-      await setCache('headline:current', responseData, null);
+      await setCache(`${SITE_PREFIX}:headline:current`, responseData, null);
     }
 
     res.status(201).json({
@@ -206,7 +208,7 @@ exports.updateArticle = async (req, res) => {
         { $set: { isHeadline: false } }
       );
       updateData.isHeadline = true;
-      await deleteCacheByPattern('headline:*');
+      await deleteCacheByPattern(`${SITE_PREFIX}:headline:*`);
     } else if (existingArticle.isHeadline && !updateData.isHeadline) {
       updateData.isHeadline = false;
     }
@@ -301,7 +303,7 @@ exports.getArticleById = async (req, res) => {
       });
     }
 
-    const cacheKey = `article:id:${id}`;
+    const cacheKey = `${SITE_PREFIX}:article:id:${id}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
@@ -341,7 +343,7 @@ exports.getArticleById = async (req, res) => {
 exports.getArticleBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
-    const cacheKey = `article:${slug}`;
+    const cacheKey = `${SITE_PREFIX}:article:${slug}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
@@ -700,7 +702,7 @@ exports.searchArticles = async (req, res) => {
 
 exports.getHeadline = async (req, res) => {
   try {
-    const cacheKey = 'headline:current';
+    const cacheKey = `${SITE_PREFIX}:headline:current`;
     const cachedData = await getCache(cacheKey);
 
     if (cachedData) {
@@ -753,7 +755,7 @@ exports.getHeadline = async (req, res) => {
 exports.getRecentArticles = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    const cacheKey = `articles:recent:${limit}`;
+    const cacheKey = `${SITE_PREFIX}:articles:recent:${limit}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
@@ -844,7 +846,7 @@ exports.getArticlesByLabel = async (req, res) => {
 exports.getFeaturedContent = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 6;
-    const cacheKey = `articles:featured:${limit}`;
+    const cacheKey = `${SITE_PREFIX}:articles:featured:${limit}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {

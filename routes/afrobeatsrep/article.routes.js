@@ -9,6 +9,29 @@ router.post(
   articleController.createArticle
 );
 
+router.get('/', articleController.getAllArticles);
+
+router.get('/search', articleController.searchArticles);
+
+router.get('/headline/current', articleController.getHeadline);
+
+router.get('/recent', articleController.getRecentArticles);
+
+router.get('/featured', articleController.getFeaturedContent);
+
+router.get('/category/:category', articleController.getArticlesByCategory);
+
+router.get(
+  '/subcategory/:subcategory',
+  articleController.getArticlesBySubcategory
+);
+
+router.get('/label/:label', articleController.getArticlesByLabel);
+
+router.get('/similar/:slug', articleController.getSimilarArticles);
+
+router.get('/slug/:slug', articleController.getArticleBySlug);
+
 router.put(
   '/:id',
   upload.fields([{ name: 'image', maxCount: 1 }]),
@@ -18,28 +41,5 @@ router.put(
 router.delete('/:id', articleController.deleteArticle);
 
 router.get('/:id', articleController.getArticleById);
-
-router.get('/slug/:slug', articleController.getArticleBySlug);
-
-router.get('/', articleController.getAllArticles);
-
-router.get('/category/:category', articleController.getArticlesByCategory);
-
-router.get(
-  '/subcategory/:subcategory',
-  articleController.getArticlesBySubcategory
-);
-
-router.get('/similar/:slug', articleController.getSimilarArticles);
-
-router.get('/search', articleController.searchArticles);
-
-router.get('/headline/current', articleController.getHeadline);
-
-router.get('/recent', articleController.getRecentArticles);
-
-router.get('/label/:label', articleController.getArticlesByLabel);
-
-router.get('/featured', articleController.getFeaturedContent);
 
 module.exports = router;

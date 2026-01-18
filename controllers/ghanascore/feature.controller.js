@@ -2,8 +2,10 @@ const Feature = require('../../models/ghanascore/feature.model');
 const { uploadToR2, deleteFromR2 } = require('../../utils/r2');
 const { getRedisClient } = require('../../lib/redis');
 
+const SITE_PREFIX = 'ghanascore';
+
 const generateCacheKey = (prefix, params) => {
-  return `${prefix}:${Object.values(params).join(':')}`;
+  return `${SITE_PREFIX}:${prefix}:${Object.values(params).join(':')}`;
 };
 
 const setCache = async (key, data, expiration = 3600) => {
@@ -44,13 +46,13 @@ const deleteCacheByPattern = async (pattern) => {
 
 const invalidateFeatureCache = async () => {
   await Promise.all([
-    deleteCacheByPattern('features:*'),
-    deleteCacheByPattern('feature:*'),
-    deleteCacheByPattern('feature:id:*'),
-    deleteCacheByPattern('category:*'),
-    deleteCacheByPattern('search:*'),
-    deleteCacheByPattern('similar:*'),
-    deleteCacheByPattern('subcategory:*'),
+    deleteCacheByPattern(`${SITE_PREFIX}:features:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:feature:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:feature:id:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:category:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:search:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:similar:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:subcategory:*`),
   ]);
 };
 
@@ -267,7 +269,7 @@ exports.getFeatureById = async (req, res) => {
       });
     }
 
-    const cacheKey = `feature:id:${id}`;
+    const cacheKey = `${SITE_PREFIX}:feature:id:${id}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
@@ -307,7 +309,7 @@ exports.getFeatureById = async (req, res) => {
 exports.getFeatureBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
-    const cacheKey = `feature:${slug}`;
+    const cacheKey = `${SITE_PREFIX}:feature:${slug}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
@@ -659,7 +661,7 @@ exports.searchFeatures = async (req, res) => {
 exports.getRecentFeatures = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    const cacheKey = `features:recent:${limit}`;
+    const cacheKey = `${SITE_PREFIX}:features:recent:${limit}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
@@ -696,7 +698,7 @@ exports.getRecentFeatures = async (req, res) => {
 exports.getFeaturedContent = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 6;
-    const cacheKey = `features:featured:${limit}`;
+    const cacheKey = `${SITE_PREFIX}:features:featured:${limit}`;
 
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
