@@ -10,6 +10,7 @@ const ghanapolitanFeatureRouter = require('./routes/ghanapolitan/feature.routes'
 const ghanapolitanOpinionRouter = require('./routes/ghanapolitan/opinion.routes');
 const ghanapolitanChartRouter = require('./routes/ghanapolitan/chart.routes');
 const ghanapolitanSectionRouter = require('./routes/ghanapolitan/section.routes');
+const ghanapolitanGraphicRouter = require('./routes/ghanapolitan/graphic.route');
 
 const ghanascoreArticleRouter = require('./routes/ghanascore/article.routes');
 const ghanascoreFeatureRouter = require('./routes/ghanascore/feature.routes');
@@ -18,6 +19,7 @@ const afrobeatsrepArticleRouter = require('./routes/afrobeatsrep/article.routes'
 const afrobeatsrepFeatureRouter = require('./routes/afrobeatsrep/feature.routes');
 
 const adminRouter = require('./routes/shared/admin.routes');
+const uploadRouter = require('./routes/shared/upload.routes');
 
 const app = express();
 
@@ -45,6 +47,7 @@ app.use('/api/ghanapolitan/feature', ghanapolitanFeatureRouter);
 app.use('/api/ghanapolitan/opinion', ghanapolitanOpinionRouter);
 app.use('/api/ghanapolitan/charts', ghanapolitanChartRouter);
 app.use('/api/ghanapolitan/sections', ghanapolitanSectionRouter);
+app.use('/api/ghanapolitan/graphic', ghanapolitanGraphicRouter);
 
 app.use('/api/ghanascore/article', ghanascoreArticleRouter);
 app.use('/api/ghanascore/feature', ghanascoreFeatureRouter);
@@ -53,6 +56,8 @@ app.use('/api/afrobeatsrep/article', afrobeatsrepArticleRouter);
 app.use('/api/afrobeatsrep/feature', afrobeatsrepFeatureRouter);
 
 app.use('/api/admin', adminRouter);
+
+app.use('/api/upload', uploadRouter);
 
 app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message });

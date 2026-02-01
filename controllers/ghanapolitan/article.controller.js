@@ -167,14 +167,34 @@ exports.createArticle = async (req, res) => {
       slug,
     } = req.body;
 
-    // Create document FIRST
+    let finalImageUrl = image_url;
+    
+    if (req.files?.image?.[0]) {
+      finalImageUrl = await uploadToR2(
+        req.files.image[0].buffer,
+        req.files.image[0].mimetype,
+        'articles'
+      );
+    }
+
+    let parsedTags = tags;
+    let parsedSubcategory = subcategory;
+    
+    if (tags && typeof tags === 'string') {
+      parsedTags = tags.split(',').map(tag => tag.trim());
+    }
+    
+    if (subcategory && typeof subcategory === 'string') {
+      parsedSubcategory = subcategory.split(',').map(sub => sub.trim());
+    }
+
     const article = new Article({
       title,
       description,
       content,
       category,
-      subcategory,
-      tags,
+      subcategory: parsedSubcategory,
+      tags: parsedTags,
       section_id: section_id || null,
       section_name: section_name || null,
       section_code: section_code || null,
@@ -186,23 +206,20 @@ exports.createArticle = async (req, res) => {
       isHeadline: isHeadline || false,
       source_name: source_name || 'Ghanapolitan',
       creator: creator || 'Admin',
-      image_url,
+      image_url: finalImageUrl,
       published_at: published_at ? new Date(published_at) : Date.now(),
     });
 
-    // ✅ USE INSTANCE METHODS (CORRECT)
     article.slug = slug || article.generateSlug(article.title);
-
     article.meta_title = meta_title || article.generateMetaTitle(article.title);
-
-    article.meta_description =
-      meta_description ||
-      article.generateMetaDescription({
-        title: article.title,
-        description: article.description,
-      });
+    article.meta_description = meta_description || article.generateMetaDescription({
+      title: article.title,
+      description: article.description,
+    });
 
     await article.save();
+
+    await invalidateArticleCache(article.slug, article.section_id, article.section_slug);
 
     return res.status(201).json({
       status: 'success',

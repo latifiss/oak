@@ -15,7 +15,7 @@ router.get('/search', graphicController.searchGraphics);
 
 router.get('/recent', graphicController.getRecentGraphics);
 
-router.get('/featured', graphicController.getFeaturedGraphics);
+router.get('/featured', graphicController.getFeaturedContent);
 
 router.get('/category/:category', graphicController.getGraphicsByCategory);
 

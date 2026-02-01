@@ -96,6 +96,6 @@ graphicSchema.methods.generateSlug = function (title) {
     .replace(/-+$/, '');
 };
 
-const Graphic = mongoose.model('GhanapolitanGraphics', graphicSchema);
+const Graphic = mongoose.model('GhanapolitanGraphic', graphicSchema);
 
 module.exports = Graphic;

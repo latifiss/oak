@@ -5,7 +5,7 @@ const { getRedisClient } = require('../../lib/redis');
 const SITE_PREFIX = 'ghanapolitan';
 
 const generateCacheKey = (prefix, params) => {
-  return `${SITE_PREFIX}:${prefix}:${Object.values(params).join(':')}`;
+  return `${SITE_PREFIX}:graphics:${prefix}:${Object.values(params).join(':')}`;
 };
 
 const setCache = async (key, data, expiration = 3600) => {
@@ -49,19 +49,33 @@ const invalidateGraphicCache = async () => {
     deleteCacheByPattern(`${SITE_PREFIX}:graphics:*`),
     deleteCacheByPattern(`${SITE_PREFIX}:graphic:*`),
     deleteCacheByPattern(`${SITE_PREFIX}:graphic:id:*`),
-    deleteCacheByPattern(`${SITE_PREFIX}:category:*`),
-    deleteCacheByPattern(`${SITE_PREFIX}:search:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:graphic:category:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:graphic:search:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:graphic:similar:*`),
+    deleteCacheByPattern(`${SITE_PREFIX}:graphic:subcategory:*`),
   ]);
 };
 
 exports.createGraphic = async (req, res) => {
   try {
-    const { title, description, meta_title, meta_description } = req.body;
+    const {
+      title,
+      description,
+      content,
+      category,
+      subcategory,
+      tags,
+      meta_title,
+      meta_description,
+      creator,
+      slug,
+      published_at,
+    } = req.body;
 
-    if (!title || !description) {
+    if (!title || !description || !content || !category) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Title and description are required',
+        message: 'Title, description, content, and category are required',
       });
     }
 
@@ -70,7 +84,7 @@ exports.createGraphic = async (req, res) => {
       imageUrl = await uploadToR2(
         req.files.image[0].buffer,
         req.files.image[0].mimetype,
-        'features'
+        'graphics'
       );
     }
 
@@ -87,11 +101,42 @@ exports.createGraphic = async (req, res) => {
       });
     }
 
+    let processedTags = [];
+    if (tags) {
+      if (typeof tags === 'string') {
+        processedTags = tags.split(',').map((tag) => tag.trim());
+      } else if (Array.isArray(tags)) {
+        processedTags = tags;
+      }
+    }
+
+    let processedSubcategory = [];
+    if (subcategory) {
+      if (typeof subcategory === 'string') {
+        processedSubcategory = subcategory.split(',').map((sub) => sub.trim());
+      } else if (Array.isArray(subcategory)) {
+        processedSubcategory = subcategory;
+      }
+    }
+
     const graphic = new Graphic({
       title,
       description,
+      content,
+      category,
+      subcategory: processedSubcategory,
+      tags: processedTags,
+      meta_title: meta_title || Graphic.prototype.generateMetaTitle(title),
+      meta_description:
+        meta_description ||
+        Graphic.prototype.generateMetaDescription({
+          title,
+          description,
+        }),
+      creator: creator || 'Admin',
       slug: graphicSlug,
       image_url: imageUrl,
+      published_at: published_at ? new Date(published_at) : Date.now(),
     });
 
     await graphic.save();
@@ -135,8 +180,22 @@ exports.updateGraphic = async (req, res) => {
       updateData.image_url = await uploadToR2(
         req.files.image[0].buffer,
         req.files.image[0].mimetype,
-        'features'
+        'graphics'
       );
+    }
+
+    if (updateData.tags) {
+      if (typeof updateData.tags === 'string') {
+        updateData.tags = updateData.tags.split(',').map((tag) => tag.trim());
+      }
+    }
+
+    if (updateData.subcategory) {
+      if (typeof updateData.subcategory === 'string') {
+        updateData.subcategory = updateData.subcategory
+          .split(',')
+          .map((sub) => sub.trim());
+      }
     }
 
     if (updateData.title && updateData.title !== existingGraphic.title) {
@@ -291,7 +350,7 @@ exports.getAllGraphics = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const cacheKey = generateCacheKey('graphics:all', { page, limit });
+    const cacheKey = generateCacheKey('all', { page, limit });
     const cachedData = await getCache(cacheKey);
 
     if (cachedData) {
@@ -343,7 +402,7 @@ exports.getGraphicsByCategory = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const cacheKey = generateCacheKey('graphics:category', {
+    const cacheKey = generateCacheKey('category', {
       category,
       page,
       limit,
@@ -397,7 +456,7 @@ exports.getGraphicsBySubcategory = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const cacheKey = generateCacheKey('graphics:subcategory', {
+    const cacheKey = generateCacheKey('subcategory', {
       subcategory,
       page,
       limit,
@@ -451,7 +510,7 @@ exports.getSimilarGraphics = async (req, res) => {
     const limit = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * limit;
 
-    const cacheKey = generateCacheKey('graphics:similar', {
+    const cacheKey = generateCacheKey('similar', {
       slug,
       page,
       limit,
@@ -467,7 +526,7 @@ exports.getSimilarGraphics = async (req, res) => {
     }
 
     const graphic = await Graphic.findOne({ slug });
-    if (!feature) {
+    if (!graphic) {
       return res.status(404).json({
         status: 'fail',
         message: 'Graphic not found',
@@ -492,7 +551,7 @@ exports.getSimilarGraphics = async (req, res) => {
         .skip(skip)
         .limit(limit),
       Graphic.countDocuments({
-        _id: { $ne: feature._id },
+        _id: { $ne: graphic._id },
         tags: { $in: tags },
       }),
     ]);
@@ -534,7 +593,7 @@ exports.searchGraphics = async (req, res) => {
       });
     }
 
-    const cacheKey = generateCacheKey('graphics:search', {
+    const cacheKey = generateCacheKey('search', {
       q,
       page,
       limit,
@@ -556,7 +615,9 @@ exports.searchGraphics = async (req, res) => {
         $or: [
           { title: { $regex: searchRegex } },
           { description: { $regex: searchRegex } },
+          { content: { $regex: searchRegex } },
           { category: { $regex: searchRegex } },
+          { tags: { $regex: searchRegex } },
         ],
       })
         .sort({ published_at: -1 })
@@ -566,7 +627,9 @@ exports.searchGraphics = async (req, res) => {
         $or: [
           { title: { $regex: searchRegex } },
           { description: { $regex: searchRegex } },
+          { content: { $regex: searchRegex } },
           { category: { $regex: searchRegex } },
+          { tags: { $regex: searchRegex } },
         ],
       }),
     ]);
@@ -632,7 +695,7 @@ exports.getRecentGraphics = async (req, res) => {
   }
 };
 
-exports.getFeaturedGraphics = async (req, res) => {
+exports.getFeaturedContent = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 6;
     const cacheKey = `${SITE_PREFIX}:graphics:featured:${limit}`;
