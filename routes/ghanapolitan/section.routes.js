@@ -3,17 +3,16 @@ const router = express.Router();
 const sectionController = require('../../controllers/ghanapolitan/section.controller');
 const upload = require('../../middleware/upload');
 
-// Existing routes (unchanged)
 router.post(
   '/',
   upload.fields([{ name: 'image', maxCount: 1 }]),
-  sectionController.createSection
+  sectionController.createSection,
 );
 
 router.put(
   '/:id',
   upload.fields([{ name: 'image', maxCount: 1 }]),
-  sectionController.updateSection
+  sectionController.updateSection,
 );
 
 router.delete('/:id', sectionController.deleteSection);
@@ -42,17 +41,17 @@ router.post('/:id/featured', sectionController.addFeaturedArticle);
 
 router.delete(
   '/:id/featured/:articleId',
-  sectionController.removeFeaturedArticle
+  sectionController.removeFeaturedArticle,
 );
 
 router.post(
   '/:id/articles/increment',
-  sectionController.incrementArticlesCount
+  sectionController.incrementArticlesCount,
 );
 
 router.post(
   '/:id/articles/decrement',
-  sectionController.decrementArticlesCount
+  sectionController.decrementArticlesCount,
 );
 
 router.post('/:id/tags', sectionController.addTag);
@@ -69,20 +68,16 @@ router.post('/:id/set-expiration', sectionController.setExpiration);
 
 router.delete('/:id/expiration', sectionController.removeExpiration);
 
-// NEW ROUTES ADDED BELOW (keeping all existing routes unchanged)
-
-// New article count routes using slug (complementary to existing id-based routes)
 router.post(
   '/slug/:slug/articles/increment',
-  sectionController.incrementArticlesCount
+  sectionController.incrementArticlesCount,
 );
 
 router.post(
   '/slug/:slug/articles/decrement',
-  sectionController.decrementArticlesCount
+  sectionController.decrementArticlesCount,
 );
 
-// New sync articles count route
 router.post('/sync/articles-count', sectionController.syncArticlesCount);
 
 module.exports = router;

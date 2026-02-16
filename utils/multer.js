@@ -10,7 +10,7 @@ const fileFilter = (req, file, cb) => {
   } else {
     cb(
       new Error('Only image files are allowed (JPEG, PNG, WEBP, AVIF)'),
-      false
+      false,
     );
   }
 };
@@ -29,7 +29,7 @@ const uploadMultiple = multer({
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024,
-    files: 5,
+    files: 10,
   },
 });
 

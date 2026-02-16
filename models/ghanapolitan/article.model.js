@@ -125,7 +125,7 @@ const commentSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const articleSchema = new Schema(
@@ -237,7 +237,7 @@ const articleSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 articleSchema.index({ 'comments.createdAt': -1 });
@@ -287,7 +287,6 @@ articleSchema.pre('save', async function () {
     this.section_slug = null;
   }
 
-  // CRITICAL FIX: Generate slug only when title is modified AND slug doesn't exist
   if (this.isModified('title') && !this.slug) {
     this.slug = this.generateSlug(this.title);
   }
@@ -351,7 +350,6 @@ articleSchema.methods.generateMetaDescription = function (data) {
 articleSchema.methods.generateSlug = function (title) {
   if (!title) return '';
 
-  // Generate base slug from title
   const baseSlug = title
     .toString()
     .toLowerCase()
@@ -362,10 +360,8 @@ articleSchema.methods.generateSlug = function (title) {
     .replace(/^-+/, '')
     .replace(/-+$/, '');
 
-  // Add timestamp for uniqueness (last 6 digits of timestamp)
   const timestamp = Date.now().toString().slice(-6);
 
-  // Combine base slug with timestamp
   return `${baseSlug}-${timestamp}`;
 };
 

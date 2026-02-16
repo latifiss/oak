@@ -1,6 +1,5 @@
 const Joi = require('joi');
 
-// Keep your existing schemas
 const adminAuthSchema = Joi.object({
   email: Joi.string()
     .email()
@@ -22,7 +21,6 @@ const adminAuthSchema = Joi.object({
   }),
 });
 
-// ADD THESE NEW SCHEMAS
 const adminRegisterSchema = Joi.object({
   email: Joi.string()
     .email()
@@ -118,6 +116,6 @@ const userAuthSchema = Joi.object({
 module.exports = {
   userAuthSchema,
   adminAuthSchema,
-  adminRegisterSchema, // ADD THIS
-  adminLoginSchema, // ADD THIS
+  adminRegisterSchema,
+  adminLoginSchema,
 };

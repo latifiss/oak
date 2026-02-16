@@ -6,7 +6,7 @@ const upload = require('../../middleware/upload');
 router.post(
   '/',
   upload.fields([{ name: 'image', maxCount: 1 }]),
-  articleController.createArticle
+  articleController.createArticle,
 );
 
 router.get('/', articleController.getAllArticles);
@@ -23,7 +23,7 @@ router.get('/top-stories', articleController.getTopStories);
 router.get('/status/:status', articleController.getArticlesByStatus);
 router.get(
   '/top-stories/category/:category',
-  articleController.getTopStoriesByCategory
+  articleController.getTopStoriesByCategory,
 );
 router.get('/top-stories/recent', articleController.getRecentTopStories);
 
@@ -31,7 +31,7 @@ router.get('/category/:category', articleController.getArticlesByCategory);
 
 router.get(
   '/subcategory/:subcategory',
-  articleController.getArticlesBySubcategory
+  articleController.getArticlesBySubcategory,
 );
 
 router.get('/similar/:slug', articleController.getSimilarArticles);
@@ -41,7 +41,7 @@ router.get('/slug/:slug', articleController.getArticleBySlug);
 router.put(
   '/:id',
   upload.fields([{ name: 'image', maxCount: 1 }]),
-  articleController.updateArticle
+  articleController.updateArticle,
 );
 
 router.delete('/:id', articleController.deleteArticle);
@@ -49,5 +49,7 @@ router.delete('/:id', articleController.deleteArticle);
 router.get('/:id', articleController.getArticleById);
 
 router.get('/status/:status', articleController.getArticlesByStatus);
+
+router.get('/tag/:tag', articleController.getArticlesByTag);
 
 module.exports = router;

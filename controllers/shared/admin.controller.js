@@ -1,8 +1,7 @@
 const Admin = require('../../models/shared/admin.model');
-// CORRECTED IMPORT: Import both schemas from your validator
 const {
-  adminRegisterSchema, // For registration
-  adminLoginSchema, // For login
+  adminRegisterSchema,
+  adminLoginSchema,
 } = require('../../middleware/authValidator');
 const {
   signAccessToken,
@@ -13,10 +12,9 @@ const generateAuthToken = require('../../middleware/generateAuthToken');
 
 exports.register = async (req, res) => {
   try {
-    // Validate with the REGISTER schema (allows name, role, etc.)
     const { error, value } = adminRegisterSchema.validate(req.body, {
       abortEarly: false,
-      stripUnknown: true, // This removes any fields not in schema
+      stripUnknown: true,
     });
 
     if (error) {
@@ -28,10 +26,8 @@ exports.register = async (req, res) => {
       });
     }
 
-    // value now contains only validated fields
     const { email, password, name, role, profileImage } = value;
 
-    // Check if admin exists
     const existingAdmin = await Admin.findOne({ email });
     if (existingAdmin) {
       return res.status(409).json({
@@ -40,18 +36,16 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Create admin
     const admin = new Admin({
       email,
       password,
-      name: name || email.split('@')[0], // Default to email username if no name
+      name: name || email.split('@')[0],
       role: role || 'admin',
       profileImage: profileImage || '',
     });
 
     await admin.save();
 
-    // Generate tokens
     const accessToken = await signAccessToken(admin._id.toString());
     const refreshToken = await signRefreshToken(admin._id.toString());
     const authToken = generateAuthToken({
@@ -80,7 +74,6 @@ exports.register = async (req, res) => {
   } catch (error) {
     console.error('Registration error:', error);
 
-    // Handle duplicate key error
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
@@ -88,7 +81,6 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Handle validation errors
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map((err) => err.message);
       return res.status(400).json({
@@ -106,10 +98,8 @@ exports.register = async (req, res) => {
   }
 };
 
-// Login Admin
 exports.login = async (req, res) => {
   try {
-    // Validate with the LOGIN schema (only email and password)
     const { error, value } = adminLoginSchema.validate(req.body, {
       abortEarly: false,
     });
@@ -125,9 +115,8 @@ exports.login = async (req, res) => {
 
     const { email, password } = value;
 
-    // Find admin with password and locked fields
     const admin = await Admin.findOne({ email }).select(
-      '+password +loginAttempts +lockUntil'
+      '+password +loginAttempts +lockUntil',
     );
 
     if (!admin) {
@@ -137,7 +126,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check if account is locked
     if (admin.isLocked()) {
       return res.status(423).json({
         success: false,
@@ -145,7 +133,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check if admin is active
     if (!admin.isActive) {
       return res.status(403).json({
         success: false,
@@ -153,11 +140,9 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check password
     const isPasswordValid = await admin.isValidPassword(password);
 
     if (!isPasswordValid) {
-      // Increment login attempts
       await admin.incrementLoginAttempts();
 
       const attemptsLeft = 5 - (admin.loginAttempts + 1);
@@ -169,14 +154,11 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Reset login attempts
     await admin.resetLoginAttempts();
 
-    // Update last login
     admin.lastLogin = Date.now();
     await admin.save({ validateBeforeSave: false });
 
-    // Generate tokens
     const accessToken = await signAccessToken(admin._id.toString());
     const refreshToken = await signRefreshToken(admin._id.toString());
     const authToken = generateAuthToken({
@@ -211,7 +193,6 @@ exports.login = async (req, res) => {
   }
 };
 
-// Refresh Token
 exports.refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
@@ -223,14 +204,11 @@ exports.refreshToken = async (req, res) => {
       });
     }
 
-    // Verify refresh token
     const adminId = await verifyRefreshToken(refreshToken);
 
-    // Generate new tokens
     const newAccessToken = await signAccessToken(adminId);
     const newRefreshToken = await signRefreshToken(adminId);
 
-    // Get admin data for auth token
     const admin = await Admin.findById(adminId);
     if (!admin) {
       return res.status(404).json({
@@ -263,10 +241,8 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
-// Get Profile
 exports.getProfile = async (req, res) => {
   try {
-    // Your auth middleware adds admin to req
     const admin = await Admin.findById(req.admin._id);
 
     if (!admin) {
@@ -289,16 +265,13 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-// Update Profile
 exports.updateProfile = async (req, res) => {
   try {
     const updates = {};
 
-    // Allowed fields to update
     if (req.body.name) updates.name = req.body.name;
     if (req.body.profileImage) updates.profileImage = req.body.profileImage;
 
-    // Don't allow email or role updates through this endpoint
     if (req.body.email || req.body.role) {
       return res.status(400).json({
         success: false,
@@ -309,7 +282,7 @@ exports.updateProfile = async (req, res) => {
     const admin = await Admin.findByIdAndUpdate(
       req.admin._id,
       { $set: updates },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!admin) {
@@ -333,17 +306,13 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-// Logout
 exports.logout = async (req, res) => {
-  // In JWT system, logout is client-side
-  // You could implement token blacklisting here if needed
   res.status(200).json({
     success: true,
     message: 'Logged out successfully',
   });
 };
 
-// Change Password
 exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -355,8 +324,6 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // For password validation, you can either use adminLoginSchema or create a separate password schema
-    // Since adminLoginSchema validates password, we can use it
     const passwordValidation = adminLoginSchema.extract('password');
     const { error } = passwordValidation.validate(newPassword);
     if (error) {
@@ -366,7 +333,6 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // Get admin with password
     const admin = await Admin.findById(req.admin._id).select('+password');
 
     if (!admin) {
@@ -376,7 +342,6 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // Verify current password
     const isCurrentPasswordValid = await admin.isValidPassword(currentPassword);
     if (!isCurrentPasswordValid) {
       return res.status(401).json({
@@ -385,7 +350,6 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // Update password
     admin.password = newPassword;
     await admin.save();
 
@@ -402,10 +366,8 @@ exports.changePassword = async (req, res) => {
   }
 };
 
-// Get All Admins (for super admin only)
 exports.getAllAdmins = async (req, res) => {
   try {
-    // Check if requester is super admin
     const requester = await Admin.findById(req.admin._id);
     if (requester.role !== 'super_admin') {
       return res.status(403).json({
@@ -415,7 +377,7 @@ exports.getAllAdmins = async (req, res) => {
     }
 
     const admins = await Admin.find({}).select(
-      '-password -loginAttempts -lockUntil'
+      '-password -loginAttempts -lockUntil',
     );
 
     res.status(200).json({
@@ -432,13 +394,11 @@ exports.getAllAdmins = async (req, res) => {
   }
 };
 
-// Update Admin Status (activate/deactivate)
 exports.updateAdminStatus = async (req, res) => {
   try {
     const { adminId } = req.params;
     const { isActive } = req.body;
 
-    // Check if requester is super admin
     const requester = await Admin.findById(req.admin._id);
     if (requester.role !== 'super_admin') {
       return res.status(403).json({
@@ -447,7 +407,6 @@ exports.updateAdminStatus = async (req, res) => {
       });
     }
 
-    // Prevent deactivating self
     if (adminId === requester._id.toString()) {
       return res.status(400).json({
         success: false,
@@ -458,7 +417,7 @@ exports.updateAdminStatus = async (req, res) => {
     const admin = await Admin.findByIdAndUpdate(
       adminId,
       { $set: { isActive } },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).select('-password');
 
     if (!admin) {

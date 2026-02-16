@@ -48,7 +48,7 @@ const deleteCacheByPattern = async (pattern) => {
 const invalidateArticleCache = async (
   slug = null,
   sectionId = null,
-  sectionSlug = null
+  sectionSlug = null,
 ) => {
   const patterns = [
     deleteCacheByPattern(`${SITE_PREFIX}:articles:*`),
@@ -75,18 +75,18 @@ const invalidateArticleCache = async (
 
   if (sectionId) {
     patterns.push(
-      deleteCacheByPattern(`${SITE_PREFIX}:articles:section:id:${sectionId}:*`)
+      deleteCacheByPattern(`${SITE_PREFIX}:articles:section:id:${sectionId}:*`),
     );
     patterns.push(
-      deleteCacheByPattern(`${SITE_PREFIX}:articles:section:${sectionId}:*`)
+      deleteCacheByPattern(`${SITE_PREFIX}:articles:section:${sectionId}:*`),
     );
   }
 
   if (sectionSlug) {
     patterns.push(
       deleteCacheByPattern(
-        `${SITE_PREFIX}:articles:section:slug:${sectionSlug}:*`
-      )
+        `${SITE_PREFIX}:articles:section:slug:${sectionSlug}:*`,
+      ),
     );
   }
 
@@ -103,7 +103,7 @@ const updateExpiredTopstories = async () => {
       },
       {
         $set: { isTopstory: false },
-      }
+      },
     ).modifiedCount;
 
     if (expiredCount > 0) {
@@ -127,7 +127,7 @@ const updateExpiredBreakingNews = async () => {
       },
       {
         $set: { isBreaking: false, breakingExpiresAt: null },
-      }
+      },
     ).modifiedCount;
 
     if (expiredCount > 0) {
@@ -168,24 +168,24 @@ exports.createArticle = async (req, res) => {
     } = req.body;
 
     let finalImageUrl = image_url;
-    
+
     if (req.files?.image?.[0]) {
       finalImageUrl = await uploadToR2(
         req.files.image[0].buffer,
         req.files.image[0].mimetype,
-        'articles'
+        'articles',
       );
     }
 
     let parsedTags = tags;
     let parsedSubcategory = subcategory;
-    
+
     if (tags && typeof tags === 'string') {
-      parsedTags = tags.split(',').map(tag => tag.trim());
+      parsedTags = tags.split(',').map((tag) => tag.trim());
     }
-    
+
     if (subcategory && typeof subcategory === 'string') {
-      parsedSubcategory = subcategory.split(',').map(sub => sub.trim());
+      parsedSubcategory = subcategory.split(',').map((sub) => sub.trim());
     }
 
     const article = new Article({
@@ -212,14 +212,20 @@ exports.createArticle = async (req, res) => {
 
     article.slug = slug || article.generateSlug(article.title);
     article.meta_title = meta_title || article.generateMetaTitle(article.title);
-    article.meta_description = meta_description || article.generateMetaDescription({
-      title: article.title,
-      description: article.description,
-    });
+    article.meta_description =
+      meta_description ||
+      article.generateMetaDescription({
+        title: article.title,
+        description: article.description,
+      });
 
     await article.save();
 
-    await invalidateArticleCache(article.slug, article.section_id, article.section_slug);
+    await invalidateArticleCache(
+      article.slug,
+      article.section_id,
+      article.section_slug,
+    );
 
     return res.status(201).json({
       status: 'success',
@@ -266,14 +272,14 @@ exports.updateArticle = async (req, res) => {
       updateData.image_url = await uploadToR2(
         req.files.image[0].buffer,
         req.files.image[0].mimetype,
-        'articles'
+        'articles',
       );
     }
 
     if (updateData.isHeadline && !existingArticle.isHeadline) {
       await Article.updateMany(
         { isHeadline: true },
-        { $set: { isHeadline: false } }
+        { $set: { isHeadline: false } },
       );
       updateData.isHeadline = true;
       await deleteCacheByPattern(`${SITE_PREFIX}:headline:*`);
@@ -1588,7 +1594,13 @@ exports.getArticlesByStatus = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const validStatuses = ['live', 'breaking', 'topstory', 'topstories', 'headline'];
+    const validStatuses = [
+      'live',
+      'breaking',
+      'topstory',
+      'topstories',
+      'headline',
+    ];
     const normalizedStatus = status.toLowerCase();
 
     if (!validStatuses.includes(normalizedStatus)) {
@@ -1617,7 +1629,7 @@ exports.getArticlesByStatus = async (req, res) => {
     }
 
     let query = {};
-    
+
     switch (normalizedStatus) {
       case 'live':
         query.isLive = true;
@@ -1635,10 +1647,7 @@ exports.getArticlesByStatus = async (req, res) => {
     }
 
     const [articles, total] = await Promise.all([
-      Article.find(query)
-        .sort({ published_at: -1 })
-        .skip(skip)
-        .limit(limit),
+      Article.find(query).sort({ published_at: -1 }).skip(skip).limit(limit),
       Article.countDocuments(query),
     ]);
 
@@ -1651,7 +1660,8 @@ exports.getArticlesByStatus = async (req, res) => {
       data: { articles },
     };
 
-    const cacheExpiration = normalizedStatus === 'breaking' || normalizedStatus === 'live' ? 60 : 300;
+    const cacheExpiration =
+      normalizedStatus === 'breaking' || normalizedStatus === 'live' ? 60 : 300;
     await setCache(cacheKey, responseData, cacheExpiration);
 
     res.status(200).json({
@@ -1697,29 +1707,29 @@ exports.getComments = async (req, res) => {
     switch (sort) {
       case 'newest':
         sortedComments.sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
         );
         break;
       case 'oldest':
         sortedComments.sort(
-          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+          (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
         );
         break;
       case 'top':
         sortedComments.sort(
-          (a, b) => b.upvotes - b.downvotes - (a.upvotes - a.downvotes)
+          (a, b) => b.upvotes - b.downvotes - (a.upvotes - a.downvotes),
         );
         break;
       case 'controversial':
         sortedComments.sort(
-          (a, b) => b.downvotes + b.upvotes - (a.downvotes + a.upvotes)
+          (a, b) => b.downvotes + b.upvotes - (a.downvotes + a.upvotes),
         );
         break;
     }
 
     const paginatedComments = sortedComments.slice(
       skip,
-      skip + parseInt(limit)
+      skip + parseInt(limit),
     );
     const total = article.comments.length;
 
@@ -2123,7 +2133,7 @@ exports.deleteComment = async (req, res) => {
     }
 
     const commentIndex = article.comments.findIndex(
-      (comment) => comment._id.toString() === commentId
+      (comment) => comment._id.toString() === commentId,
     );
     if (commentIndex === -1) {
       return res.status(404).json({
@@ -2171,7 +2181,7 @@ exports.deleteReply = async (req, res) => {
     }
 
     const replyIndex = comment.replies.findIndex(
-      (reply) => reply._id.toString() === replyId
+      (reply) => reply._id.toString() === replyId,
     );
     if (replyIndex === -1) {
       return res.status(404).json({
@@ -2401,6 +2411,70 @@ exports.getArticlesByStatus = async (req, res) => {
     }
 
     await setCache(cacheKey, responseData, cacheExpiration);
+
+    res.status(200).json({
+      status: 'success',
+      cached: false,
+      ...responseData,
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      message: err.message,
+    });
+  }
+};
+
+exports.getArticlesByTag = async (req, res) => {
+  try {
+    const { tag } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    if (!tag || tag.trim() === '') {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Tag is required',
+      });
+    }
+
+    const cacheKey = generateCacheKey('articles:tag', {
+      tag,
+      page,
+      limit,
+    });
+    const cachedData = await getCache(cacheKey);
+
+    if (cachedData) {
+      return res.status(200).json({
+        status: 'success',
+        cached: true,
+        ...cachedData,
+      });
+    }
+
+    await updateExpiredTopstories();
+    await updateExpiredBreakingNews();
+
+    const [articles, total] = await Promise.all([
+      Article.find({ tags: { $in: [tag] } })
+        .sort({ published_at: -1 })
+        .skip(skip)
+        .limit(limit),
+      Article.countDocuments({ tags: { $in: [tag] } }),
+    ]);
+
+    const responseData = {
+      tag,
+      results: articles.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      data: { articles },
+    };
+
+    await setCache(cacheKey, responseData, 300);
 
     res.status(200).json({
       status: 'success',

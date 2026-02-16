@@ -3,7 +3,6 @@ const router = express.Router();
 const chartController = require('../../controllers/ghanapolitan/chart.controller');
 const { body, param, query } = require('express-validator');
 
-// Validation middleware
 const validateChart = [
   body('title')
     .trim()
@@ -12,7 +11,7 @@ const validateChart = [
     .isLength({ max: 200 }),
   body('description').trim().notEmpty().withMessage('Description is required'),
   body('chart_type').isIn(
-    Object.values(require('../../models/ghanapolitan/chart.model').CHART_TYPES)
+    Object.values(require('../../models/ghanapolitan/chart.model').CHART_TYPES),
   ),
   body('chart_data').isArray().withMessage('Chart data must be an array'),
   body('data_schema.columns')
@@ -21,7 +20,6 @@ const validateChart = [
   body('category').trim().notEmpty().withMessage('Category is required'),
 ];
 
-// Public routes
 router.get('/types', chartController.getChartTypes);
 router.get('/data-types', chartController.getDataTypes);
 
@@ -34,8 +32,8 @@ router.get(
       .optional()
       .isIn(
         Object.values(
-          require('../../models/ghanapolitan/chart.model').CHART_TYPES
-        )
+          require('../../models/ghanapolitan/chart.model').CHART_TYPES,
+        ),
       ),
     query('status').optional().isIn(['draft', 'published', 'archived']),
     query('sort')
@@ -49,44 +47,42 @@ router.get(
         '-views',
       ]),
   ],
-  chartController.listCharts
+  chartController.listCharts,
 );
 
 router.get(
   '/:id',
   param('id').notEmpty().withMessage('Chart ID or slug is required'),
-  chartController.getChart
+  chartController.getChart,
 );
 
 router.get(
   '/:id/config',
   param('id').notEmpty().withMessage('Chart ID or slug is required'),
-  chartController.getChartConfig
+  chartController.getChartConfig,
 );
 
 router.get(
   '/:id/data',
   param('id').notEmpty().withMessage('Chart ID or slug is required'),
-  chartController.getChartData
+  chartController.getChartData,
 );
 
-// Protected routes (require authentication)
 router.post('/', validateChart, chartController.createChart);
 
 router.put(
   '/:id',
   param('id').isMongoId().withMessage('Invalid chart ID'),
   validateChart,
-  chartController.updateChart
+  chartController.updateChart,
 );
 
 router.delete(
   '/:id',
   param('id').isMongoId().withMessage('Invalid chart ID'),
-  chartController.deleteChart
+  chartController.deleteChart,
 );
 
-// CSV Import route
 router.post(
   '/import/csv',
   [
@@ -95,10 +91,9 @@ router.post(
       .isArray()
       .withMessage('Schema columns must be an array'),
   ],
-  chartController.importCSVData
+  chartController.importCSVData,
 );
 
-// Batch operations
 router.post(
   '/batch/publish',
   [
@@ -115,7 +110,7 @@ router.post(
             status: 'published',
             published_at: new Date(),
           },
-        }
+        },
       );
 
       res.status(200).json({
@@ -128,10 +123,9 @@ router.post(
         error: error.message,
       });
     }
-  }
+  },
 );
 
-// Get charts by category
 router.get(
   '/category/:category',
   [
@@ -161,10 +155,9 @@ router.get(
         error: error.message,
       });
     }
-  }
+  },
 );
 
-// Get popular charts
 router.get(
   '/popular/:limit?',
   param('limit').optional().isInt({ min: 1, max: 50 }),
@@ -187,10 +180,9 @@ router.get(
         error: error.message,
       });
     }
-  }
+  },
 );
 
-// Search charts
 router.get(
   '/search/:query',
   [
@@ -220,7 +212,7 @@ router.get(
         error: error.message,
       });
     }
-  }
+  },
 );
 
 module.exports = router;

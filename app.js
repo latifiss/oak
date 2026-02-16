@@ -23,17 +23,11 @@ const uploadRouter = require('./routes/shared/upload.routes');
 
 const app = express();
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:3002',
-];
-
 const corsOptions = {
-  origin: allowedOrigins,
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
+  credentials: false,
 };
 
 app.use(cors(corsOptions));

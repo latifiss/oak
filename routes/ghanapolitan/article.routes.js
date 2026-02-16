@@ -6,7 +6,7 @@ const upload = require('../../middleware/upload');
 router.post(
   '/',
   upload.fields([{ name: 'image', maxCount: 1 }]),
-  articleController.createArticle
+  articleController.createArticle,
 );
 
 router.get('/', articleController.getAllArticles);
@@ -25,18 +25,18 @@ router.get('/feed', articleController.getArticleFeed);
 
 router.get(
   '/feed/category/:category',
-  articleController.getArticleFeedByCategory
+  articleController.getArticleFeedByCategory,
 );
 
 router.get('/with-sections', articleController.getArticlesWithSections);
 router.get('/without-section', articleController.getArticlesWithoutSection);
 router.get(
   '/without-section-by-category/:category',
-  articleController.getArticlesWithoutSectionByCategory
+  articleController.getArticlesWithoutSectionByCategory,
 );
 router.get(
   '/without-section-by-subcategory/:subcategory',
-  articleController.getArticlesWithoutSectionBySubcategory
+  articleController.getArticlesWithoutSectionBySubcategory,
 );
 
 router.get('/section/:sectionSlug', articleController.getArticlesBySection);
@@ -44,14 +44,14 @@ router.get('/section/:sectionSlug', articleController.getArticlesBySection);
 router.get('/section/id/:sectionId', articleController.getArticlesBySectionId);
 router.get(
   '/section/slug/:sectionSlug',
-  articleController.getArticlesBySectionSlug
+  articleController.getArticlesBySectionSlug,
 );
 
 router.get('/category/:category', articleController.getArticlesByCategory);
 
 router.get(
   '/subcategory/:subcategory',
-  articleController.getArticlesBySubcategory
+  articleController.getArticlesBySubcategory,
 );
 
 router.get('/similar/:slug', articleController.getSimilarArticles);
@@ -66,28 +66,28 @@ router.delete('/:slug/comments/:commentId', articleController.deleteComment);
 router.post('/:slug/comments/:commentId/replies', articleController.addReply);
 router.put(
   '/:slug/comments/:commentId/replies/:replyId',
-  articleController.editReply
+  articleController.editReply,
 );
 router.delete(
   '/:slug/comments/:commentId/replies/:replyId',
-  articleController.deleteReply
+  articleController.deleteReply,
 );
 
 router.post(
   '/:slug/comments/:commentId/upvote',
-  articleController.upvoteComment
+  articleController.upvoteComment,
 );
 router.post(
   '/:slug/comments/:commentId/downvote',
-  articleController.downvoteComment
+  articleController.downvoteComment,
 );
 router.post(
   '/:slug/comments/:commentId/replies/:replyId/upvote',
-  articleController.upvoteReply
+  articleController.upvoteReply,
 );
 router.post(
   '/:slug/comments/:commentId/replies/:replyId/downvote',
-  articleController.downvoteReply
+  articleController.downvoteReply,
 );
 
 router.post('/:id/assign-section', articleController.assignArticleToSection);
@@ -96,7 +96,7 @@ router.post('/:id/remove-section', articleController.removeArticleFromSection);
 router.put(
   '/:id',
   upload.fields([{ name: 'image', maxCount: 1 }]),
-  articleController.updateArticle
+  articleController.updateArticle,
 );
 
 router.delete('/:id', articleController.deleteArticle);
@@ -104,5 +104,7 @@ router.delete('/:id', articleController.deleteArticle);
 router.get('/:id', articleController.getArticleById);
 
 router.get('/status/:status', articleController.getArticlesByStatus);
+
+router.get('/tag/:tag', articleController.getArticlesByTag);
 
 module.exports = router;

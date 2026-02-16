@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-// Define chart types as constants
 const CHART_TYPES = {
   BAR: 'bar',
   STACKED_BAR: 'stacked_bar',
@@ -27,7 +26,6 @@ const DATA_TYPES = {
 
 const chartSchema = new Schema(
   {
-    // Basic Information
     title: {
       type: String,
       required: true,
@@ -48,7 +46,6 @@ const chartSchema = new Schema(
       trim: true,
     },
 
-    // Chart Configuration
     chart_type: {
       type: String,
       required: true,
@@ -61,7 +58,6 @@ const chartSchema = new Schema(
       default: {},
     },
 
-    // Data Schema Definition (like FiveThirtyEight's metadata)
     data_schema: {
       columns: [
         {
@@ -75,7 +71,7 @@ const chartSchema = new Schema(
             default: DATA_TYPES.NUMERIC,
           },
           description: String,
-          format: String, // e.g., 'percentage', 'currency', 'date'
+          format: String,
           is_index: {
             type: Boolean,
             default: false,
@@ -102,20 +98,17 @@ const chartSchema = new Schema(
       },
     },
 
-    // Chart Data (stored as arrays for performance)
     chart_data: {
       type: Schema.Types.Mixed,
       required: true,
       validate: {
         validator: function (data) {
-          // Basic validation that data is an array
           return Array.isArray(data) && data.length > 0;
         },
         message: 'Chart data must be a non-empty array',
       },
     },
 
-    // Display Configuration
     display_config: {
       colors: [String],
       animation: {
@@ -150,7 +143,6 @@ const chartSchema = new Schema(
       maintainAspectRatio: { type: Boolean, default: true },
     },
 
-    // Content & Metadata
     content: {
       type: Schema.Types.Mixed,
       default: {},
@@ -176,7 +168,6 @@ const chartSchema = new Schema(
       },
     ],
 
-    // SEO Metadata
     meta_title: {
       type: String,
       maxlength: 60,
@@ -187,7 +178,6 @@ const chartSchema = new Schema(
       maxlength: 160,
     },
 
-    // Creator Information
     creator: {
       name: {
         type: String,
@@ -197,21 +187,18 @@ const chartSchema = new Schema(
       avatar: String,
     },
 
-    // Media
     featured_image: {
       url: String,
       alt: String,
       caption: String,
     },
 
-    // Embed Options
     embed_code: String,
     embed_enabled: {
       type: Boolean,
       default: true,
     },
 
-    // Publication Status
     status: {
       type: String,
       enum: ['draft', 'published', 'archived'],
@@ -223,19 +210,16 @@ const chartSchema = new Schema(
       default: null,
     },
 
-    // Versioning
     version: {
       type: Number,
       default: 1,
     },
 
-    // Analytics
     views: {
       type: Number,
       default: 0,
     },
 
-    // Relationships
     related_charts: [
       {
         type: Schema.Types.ObjectId,
@@ -243,12 +227,11 @@ const chartSchema = new Schema(
       },
     ],
 
-    // Source file information (like FiveThirtyEight GitHub)
     source_files: [
       {
         filename: String,
         url: String,
-        format: String, // csv, json, xlsx
+        format: String,
         size: Number,
       },
     ],
@@ -257,10 +240,9 @@ const chartSchema = new Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
-// Indexes for performance
 chartSchema.index({ slug: 1 });
 chartSchema.index({ category: 1, status: 1 });
 chartSchema.index({ tags: 1 });
@@ -268,24 +250,19 @@ chartSchema.index({ published_at: -1 });
 chartSchema.index({ views: -1 });
 chartSchema.index({ title: 'text', description: 'text' });
 
-// Pre-save middleware
 chartSchema.pre('save', async function () {
-  // Generate slug if not provided
   if (!this.slug && this.title) {
     this.slug = this.generateSlug(this.title);
   }
 
-  // Generate meta title if not provided
   if (!this.meta_title && this.title) {
     this.meta_title = this.generateMetaTitle(this.title);
   }
 
-  // Generate meta description if not provided
   if (!this.meta_description && this.description) {
     this.meta_description = this.generateMetaDescription(this.description);
   }
 
-  // Set published_at if status changes to published
   if (
     this.isModified('status') &&
     this.status === 'published' &&
@@ -294,13 +271,11 @@ chartSchema.pre('save', async function () {
     this.published_at = new Date();
   }
 
-  // Increment version on updates (but not on initial save)
   if (this.isModified() && !this.isNew) {
     this.version += 1;
   }
 });
 
-// Instance methods
 chartSchema.methods.generateSlug = function (title) {
   return title
     .toString()
@@ -328,7 +303,6 @@ chartSchema.methods.generateMetaDescription = function (description) {
 };
 
 chartSchema.methods.getChartConfig = function () {
-  // Return complete chart configuration for frontend
   const baseConfig = {
     type: this.chart_type,
     data: {
@@ -350,7 +324,6 @@ chartSchema.methods.getChartConfig = function () {
     },
   };
 
-  // Add specific configurations based on chart type
   switch (this.chart_type) {
     case CHART_TYPES.STACKED_BAR:
       baseConfig.options.scales = {
@@ -367,7 +340,6 @@ chartSchema.methods.getChartConfig = function () {
   return baseConfig;
 };
 
-// Static methods
 chartSchema.statics.findByType = function (type) {
   return this.find({ chart_type: type, status: 'published' });
 };
@@ -382,12 +354,10 @@ chartSchema.statics.findRecent = function (limit = 10) {
     .limit(limit);
 };
 
-// Virtual for chart preview URL
 chartSchema.virtual('preview_url').get(function () {
   return `/charts/${this.slug}/preview`;
 });
 
-// Virtual for embed URL
 chartSchema.virtual('embed_url').get(function () {
   return `/embed/chart/${this._id}`;
 });

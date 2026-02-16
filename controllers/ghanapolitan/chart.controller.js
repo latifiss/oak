@@ -23,16 +23,14 @@ exports.createChart = async (req, res) => {
       display_config = {},
     } = req.body;
 
-    // Validate chart type
     if (!Object.values(CHART_TYPES).includes(chart_type)) {
       return res.status(400).json({
         error: `Invalid chart type. Must be one of: ${Object.values(
-          CHART_TYPES
+          CHART_TYPES,
         ).join(', ')}`,
       });
     }
 
-    // Validate data structure based on chart type
     if (!this.validateChartData(chart_type, chart_data, data_schema)) {
       return res.status(400).json({
         error:
@@ -91,7 +89,6 @@ exports.getChart = async (req, res) => {
       });
     }
 
-    // Increment views
     chart.views += 1;
     await chart.save();
 
@@ -117,7 +114,6 @@ exports.updateChart = async (req, res) => {
 
     const updates = req.body;
 
-    // Don't allow slug changes through regular updates
     if (updates.slug) {
       delete updates.slug;
     }
@@ -125,7 +121,7 @@ exports.updateChart = async (req, res) => {
     const chart = await Chart.findOneAndUpdate(
       { _id: req.params.id },
       { $set: updates },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!chart) {
@@ -160,7 +156,6 @@ exports.deleteChart = async (req, res) => {
       });
     }
 
-    // Soft delete by archiving
     chart.status = 'archived';
     await chart.save();
 
@@ -194,19 +189,16 @@ exports.listCharts = async (req, res) => {
 
     const query = {};
 
-    // Filter by status (admin can see all, public only sees published)
     if (req.user?.role === 'admin') {
       if (status) query.status = status;
     } else {
       query.status = 'published';
     }
 
-    // Apply filters
     if (chart_type) query.chart_type = chart_type;
     if (category) query.category = category;
     if (tag) query.tags = tag;
 
-    // Date filters
     if (year || month) {
       query.published_at = {};
       if (year) {
@@ -219,14 +211,13 @@ exports.listCharts = async (req, res) => {
         const startDate = new Date(`${year}-${month.padStart(2, '0')}-01`);
         const nextMonth = parseInt(month) + 1;
         const endDate = new Date(
-          `${year}-${nextMonth.toString().padStart(2, '0')}-01`
+          `${year}-${nextMonth.toString().padStart(2, '0')}-01`,
         );
         query.published_at.$gte = startDate;
         query.published_at.$lt = endDate;
       }
     }
 
-    // Search
     if (search) {
       query.$text = { $search: search };
     }
@@ -237,7 +228,7 @@ exports.listCharts = async (req, res) => {
       .sort(sort)
       .skip(skip)
       .limit(parseInt(limit))
-      .select('-chart_data'); // Exclude large data by default
+      .select('-chart_data');
 
     const total = await Chart.countDocuments(query);
 
@@ -359,8 +350,6 @@ exports.getDataTypes = async (req, res) => {
 
 exports.importCSVData = async (req, res) => {
   try {
-    // This would integrate with a CSV parsing library like papaparse
-    // For now, we'll assume data is already parsed
     const { csvData, schema } = req.body;
 
     if (!csvData || !Array.isArray(csvData)) {
@@ -370,7 +359,6 @@ exports.importCSVData = async (req, res) => {
       });
     }
 
-    // Transform CSV data to chart data format
     const chartData = this.transformCSVToChartData(csvData, schema);
 
     res.status(200).json({
@@ -387,36 +375,31 @@ exports.importCSVData = async (req, res) => {
   }
 };
 
-// Helper Methods
 exports.validateChartData = (chartType, chartData, dataSchema) => {
   if (!Array.isArray(chartData) || chartData.length === 0) {
     return false;
   }
 
-  // Basic validation - can be expanded based on chart type
   switch (chartType) {
     case CHART_TYPES.BAR:
     case CHART_TYPES.STACKED_BAR:
-      // Should have at least one index column and one measure column
       const hasIndex = dataSchema?.columns?.some((col) => col.is_index);
       const hasMeasure = dataSchema?.columns?.some((col) => col.is_measure);
       return hasIndex && hasMeasure;
 
     case CHART_TYPES.PIE:
     case CHART_TYPES.DONUT:
-      // Should have one index and one measure
       const pieIndex = dataSchema?.columns?.filter(
-        (col) => col.is_index
+        (col) => col.is_index,
       ).length;
       const pieMeasure = dataSchema?.columns?.filter(
-        (col) => col.is_measure
+        (col) => col.is_measure,
       ).length;
       return pieIndex === 1 && pieMeasure === 1;
 
     case CHART_TYPES.SCATTER:
-      // Should have at least two measures
       const scatterMeasures = dataSchema?.columns?.filter(
-        (col) => col.is_measure
+        (col) => col.is_measure,
       ).length;
       return scatterMeasures >= 2;
 
@@ -426,14 +409,12 @@ exports.validateChartData = (chartType, chartData, dataSchema) => {
 };
 
 exports.transformCSVToChartData = (csvData, schema) => {
-  // Transform CSV rows to chart data objects
   return csvData.map((row) => {
     const dataPoint = {};
 
     schema.columns.forEach((column) => {
       const value = row[column.name];
 
-      // Convert value based on data type
       switch (column.data_type) {
         case DATA_TYPES.NUMERIC:
           dataPoint[column.name] = parseFloat(value) || 0;

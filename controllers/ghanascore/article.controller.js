@@ -125,7 +125,7 @@ exports.createArticle = async (req, res) => {
     if (isHeadline) {
       await Article.updateMany(
         { isHeadline: true },
-        { $set: { isHeadline: false } }
+        { $set: { isHeadline: false } },
       );
       await deleteCacheByPattern(`${SITE_PREFIX}:headline:*`);
     }
@@ -135,7 +135,7 @@ exports.createArticle = async (req, res) => {
       imageUrl = await uploadToR2(
         req.files.image[0].buffer,
         req.files.image[0].mimetype,
-        'articles'
+        'articles',
       );
     }
 
@@ -303,14 +303,14 @@ exports.updateArticle = async (req, res) => {
       updateData.image_url = await uploadToR2(
         req.files.image[0].buffer,
         req.files.image[0].mimetype,
-        'articles'
+        'articles',
       );
     }
 
     if (updateData.isHeadline && !existingArticle.isHeadline) {
       await Article.updateMany(
         { isHeadline: true },
-        { $set: { isHeadline: false } }
+        { $set: { isHeadline: false } },
       );
       await deleteCacheByPattern(`${SITE_PREFIX}:headline:*`);
     } else if (existingArticle.isHeadline && updateData.isHeadline === false) {
@@ -1136,7 +1136,13 @@ exports.getArticlesByStatus = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const validStatuses = ['live', 'breaking', 'topstory', 'topstories', 'headline'];
+    const validStatuses = [
+      'live',
+      'breaking',
+      'topstory',
+      'topstories',
+      'headline',
+    ];
     const normalizedStatus = status.toLowerCase();
 
     if (!validStatuses.includes(normalizedStatus)) {
@@ -1165,7 +1171,7 @@ exports.getArticlesByStatus = async (req, res) => {
     }
 
     let query = {};
-    
+
     switch (normalizedStatus) {
       case 'live':
         query.isLive = true;
@@ -1183,10 +1189,7 @@ exports.getArticlesByStatus = async (req, res) => {
     }
 
     const [articles, total] = await Promise.all([
-      Article.find(query)
-        .sort({ published_at: -1 })
-        .skip(skip)
-        .limit(limit),
+      Article.find(query).sort({ published_at: -1 }).skip(skip).limit(limit),
       Article.countDocuments(query),
     ]);
 
@@ -1199,7 +1202,8 @@ exports.getArticlesByStatus = async (req, res) => {
       data: { articles },
     };
 
-    const cacheExpiration = normalizedStatus === 'breaking' || normalizedStatus === 'live' ? 60 : 300;
+    const cacheExpiration =
+      normalizedStatus === 'breaking' || normalizedStatus === 'live' ? 60 : 300;
     await setCache(cacheKey, responseData, cacheExpiration);
 
     res.status(200).json({
@@ -1303,6 +1307,70 @@ exports.getArticlesByStatus = async (req, res) => {
     }
 
     await setCache(cacheKey, responseData, cacheExpiration);
+
+    res.status(200).json({
+      status: 'success',
+      cached: false,
+      ...responseData,
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      message: err.message,
+    });
+  }
+};
+
+exports.getArticlesByTag = async (req, res) => {
+  try {
+    const { tag } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    if (!tag || tag.trim() === '') {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Tag parameter is required',
+      });
+    }
+
+    const cacheKey = generateCacheKey('articles:tag', {
+      tag,
+      page,
+      limit,
+    });
+    const cachedData = await getCache(cacheKey);
+
+    if (cachedData) {
+      return res.status(200).json({
+        status: 'success',
+        cached: true,
+        ...cachedData,
+      });
+    }
+
+    await updateExpiredTopstories();
+    await updateExpiredBreakingNews();
+
+    const [articles, total] = await Promise.all([
+      Article.find({ tags: { $in: [tag] } })
+        .sort({ published_at: -1 })
+        .skip(skip)
+        .limit(limit),
+      Article.countDocuments({ tags: { $in: [tag] } }),
+    ]);
+
+    const responseData = {
+      tag,
+      results: articles.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      data: { articles },
+    };
+
+    await setCache(cacheKey, responseData, 300);
 
     res.status(200).json({
       status: 'success',
